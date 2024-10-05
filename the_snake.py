@@ -71,8 +71,7 @@ class GameObject:
 
     def draw_cell(self, position, body_color=None) -> None:
         """Отрисовка объекта на игровом поле."""
-        if not body_color:
-            body_color = self.body_color
+        body_color = body_color or self.body_color
         rect = pg.Rect(position, (GRID_SIZE, GRID_SIZE))
         pg.draw.rect(screen, body_color, rect)
         if body_color != BOARD_BACKGROUND_COLOR:
@@ -148,17 +147,18 @@ class Apple(GameObject):
         self.randomize_position(occupied_positions)
 
     def draw(self):
-        """Отрисовывает игровой объект на игровом поле."""
+        """Отрисовывает и затирает игровой объект на игровом поле."""
         self.draw_cell(self.position)
+        if self.last:
+            self.draw_cell(self.last, BOARD_BACKGROUND_COLOR)
+            self.last = None
 
     def randomize_position(
         self, occupied_positions: list[tuple[int, int]] = []
     ) -> None:
         """Генерит рандомную координату расположения игрового объекта."""
-        self.draw_cell(self.position, BOARD_BACKGROUND_COLOR)
-        self.position = choice(list(ALL_CELLS))
-        while self.position in occupied_positions:
-            self.position = choice(list(ALL_CELLS))
+        self.last = self.position
+        self.position = choice(tuple(ALL_CELLS - set(occupied_positions)))
 
 
 def handle_keys(snake: Snake) -> None:
@@ -176,9 +176,9 @@ def handle_keys(snake: Snake) -> None:
                 raise SystemExit
 
 
-def check_position(snake_instance, apple_instance,
-                   fake_meal_instance, stone_instance):
-    """Проверяем позиции игровых объектов на занятость"""
+def get_new_position(snake_instance, apple_instance,
+                     fake_meal_instance, stone_instance):
+    """Получаем новые позиции игровых объектов"""
     apple_instance.randomize_position(
         occupied_positions=snake_instance.positions
         + [stone_instance.position, fake_meal_instance.position]
@@ -225,7 +225,7 @@ def main():
             snake.add_tale()
             # Координаты нового яблока не должны
             # совпадать с координатами других объектов
-            check_position(snake, apple, fake_meal, stone)
+            get_new_position(snake, apple, fake_meal, stone)
 
         # При столкновении с собой или камнем
         # сбрасываем змейку к дефолтным параметрам
@@ -235,7 +235,7 @@ def main():
         ):
             screen.fill(BOARD_BACKGROUND_COLOR)
             snake.reset()
-            check_position(snake, apple, fake_meal, stone)
+            get_new_position(snake, apple, fake_meal, stone)
 
         # При съедании фэйковой еды змейка
         # сбрасывает хвост и генерится новая еда
@@ -245,7 +245,7 @@ def main():
             else:
                 snake.draw()
                 snake.lose_tail()
-            check_position(snake, apple, fake_meal, stone)
+            get_new_position(snake, apple, fake_meal, stone)
 
         if snake.length > max_length:
             max_length = snake.length
@@ -255,10 +255,10 @@ def main():
             )
 
         # Отрисовка игровых объектов
-        snake.draw()
         apple.draw()
         fake_meal.draw()
         stone.draw()
+        snake.draw()
         pg.display.update()
 
 
